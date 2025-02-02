@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import RegisterPage from "./pages/RegisterPage";
 import UserRegisterPage from "./pages/EcoCoin/Registerpage";
 import UserClaimSubmissionPage from "./pages/EcoCoin/ClaimPage";
+import RequestsPage from "./pages/CarbonCredit/RequestsPage";
 
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="organisation/register" element={<OrganisationRegisterPage />} />
           <Route path="organisation/marketplace" element={<OrganisationMarketplace />} />
           <Route path="organisation/claim" element={<OrganisationClaimPage />} />
+          <Route path="organisation/requests" element={<RequestsPage />} />
         </Routes>
       </Web3Provider>
       <UserWeb3Provider>

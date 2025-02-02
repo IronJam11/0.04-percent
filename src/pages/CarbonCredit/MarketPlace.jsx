@@ -4,9 +4,12 @@ import { useIPFS } from "../../context/IpfsContext"; // Import the IPFS context 
 
 const OrganisationMarketplace = () => {
     const { walletAddress, contract } = useContext(Web3Context); // Use global Web3 state
-    const { getFile, isLoading, error } = useIPFS(); // Use IPFS hook to get images
+    const { getFile } = useIPFS(); // Use IPFS hook to get images
     const [organizations, setOrganizations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [selectedOrg, setSelectedOrg] = useState(null);
+    const [amount, setAmount] = useState("");
 
     useEffect(() => {
         if (contract) {
@@ -23,15 +26,15 @@ const OrganisationMarketplace = () => {
 
             const orgs = await contract.queryFilter("OrganizationRegistered");
 
-            // Format the organizations array to include the correct properties
             const formattedOrgs = await Promise.all(
                 orgs.map(async (event) => {
-                    const photoUrl = await getFile(event.args.photoIpfsHash); // Get image URL using IPFS CID
+                    const photoUrl = await getFile(event.args.photoIpfsHash);
                     return {
                         address: event.args.orgAddress,
                         name: event.args.name,
-                        photoUrl, // Store the image URL here
-                        balance: event.args.balance || 0,
+                        photoUrl,
+                        balance: event.args.balance.toString() || 0,
+                        wallet: event.args.wallet.toString() || 0,
                     };
                 })
             );
@@ -41,6 +44,43 @@ const OrganisationMarketplace = () => {
         } catch (error) {
             console.error("Error fetching organizations:", error);
             setLoading(false);
+        }
+    };
+
+    const handleBorrowClick = (org) => {
+        setSelectedOrg(org);
+        setShowModal(true);
+    };
+
+    const handleAddRequest = () => {
+        if (!amount || isNaN(amount) || amount <= 0) {
+            alert("Enter a valid amount");
+            return;
+        }
+
+        console.log("Borrow request:", {
+            walletAddress,
+            orgAddress: selectedOrg.address,
+            amount,
+        });
+
+        // Call the function to process the borrowing request
+        borrowCarbonCoins(walletAddress, selectedOrg.address, amount);
+
+        // Close the modal
+        setShowModal(false);
+        setAmount("");
+    };
+
+    const borrowCarbonCoins =  async (userWallet, orgAddress, amount) => {
+        try{
+        const tx = await contract.createRequest(
+            orgAddress,
+            amount
+          );
+          alert("Request created successfully!");
+        } catch (error) {
+            console.error("Error creating request:", error);
         }
     };
 
@@ -73,12 +113,46 @@ const OrganisationMarketplace = () => {
                             <div className="text-center space-y-2">
                                 <p className="text-xl font-semibold">{org.name}</p>
                                 <p className="text-sm text-gray-400">Address: {org.address}</p>
-                                <p className="text-sm font-semibold">
-                                    Balance: {org.balance ? org.balance : "None"}
-                                </p>
+                                <p className="text-sm text-gray-400">CarbonCoins: {org.balance} </p>
                             </div>
+                            <button
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg transition-all duration-300 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onClick={() => handleBorrowClick(org)}
+                            >
+                                Borrow
+                            </button>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {showModal && selectedOrg && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-96">
+                        <h2 className="text-xl font-semibold mb-4 text-white">Borrow CarbonCoins</h2>
+                        <p className="text-gray-300">Enter the number of CarbonCoins to borrow from {selectedOrg.name}:</p>
+                        <input
+                            type="number"
+                            className="w-full p-2 mt-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                            placeholder="Enter amount"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                        />
+                        <div className="flex justify-between mt-4">
+                            <button
+                                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                                onClick={() => setShowModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                                onClick={handleAddRequest}
+                            >
+                                Add Request
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

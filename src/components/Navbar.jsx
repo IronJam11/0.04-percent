@@ -23,9 +23,9 @@ const Navbar = () => {
         <span className="co2-label">0.04 CO₂</span>
       </div>
       <div className="nav-right">
-        <Link to="/claim" className="nav-item">Claim</Link>
-        <Link to="/marketplace" className="nav-item">Marketplace</Link>
-        <Link to="/profile" className="nav-item">Profile</Link>
+        <Link to="/organisation/claim" className="nav-item">Claim</Link>
+        <Link to="/organisationmarketplace" className="nav-item">Marketplace</Link>
+        <Link to="/organisation/requests" className="nav-item">Requests</Link>
       </div>
     </nav>
   );

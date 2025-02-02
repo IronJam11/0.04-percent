@@ -19,16 +19,16 @@ from ultralytics import YOLO
 import subprocess
 from skimage import io
 
-model = YOLO("../weights/best.pt")
-sample_img1= "../Sample1.png"
-sample_img2= "../Sample2.png"
+model = YOLO("./weights/best.pt")  
+sample_img1= "./assets/sample_1.jpg"
+sample_img2= "./assets/sample_2.jpg"
 def model_pass_through(lat,lon,area,year):
     # command1 = "!yolo task=detect mode=predict model=/Users/abhivansh/Desktop/0.04-percent/backend/weights/best.pt source=/Users/abhivansh/Desktop/0.04-percent/tree_detection/Dataset/valid/images/cl_261910_4_174455_4_19_jpg.rf.bee3769739f7df98507f42e023b155e8.jpg conf=0.1"
     # subprocess.run(command1, shell=True)
     # command2 = "!yolo task=detect mode=predict model=/Users/abhivansh/Desktop/0.04-percent/backend/weights/best.pt source=/Users/abhivansh/Desktop/0.04-percent/tree_detection/Dataset/valid/images/cr_261969_4_174264_4_19_jpg.rf.de93c98ffc682d16dd91d862ff1d636c.jpg conf=0.1"
     # subprocess.run(command2, shell=True)
-    PATH1 = "/Users/abhivansh/Desktop/0.04-percent/backend/assets/Sample1.png"
-    PATH2 = "/Users/abhivansh/Desktop/0.04-percent/backend/assets/Sample2.png"
+    PATH1 = "./assets/sample_1.jpg"
+    PATH2 = "./assets/sample_2.jpg"
     pred_img1 = io.imread(PATH1)
     pred_img2 = io.imread(PATH2)
     plots1 = model.predict((pred_img1),conf=0.1)

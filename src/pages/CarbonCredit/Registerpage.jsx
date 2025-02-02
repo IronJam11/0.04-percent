@@ -11,6 +11,9 @@ export default function OrganisationRegisterPage() {
     name: "",
     netEmission: "",
     photo: null, // Changed from photoIpfsHash to photo
+    balance: 0,
+    wallet: 10000,
+    
   });
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -39,11 +42,12 @@ export default function OrganisationRegisterPage() {
       }
 
       alert("ipfsHash: " + photoIpfsHash);
-      // Register organization
       const tx = await contract.registerOrganization(
         formData.name,
         formData.netEmission,
-        photoIpfsHash
+        photoIpfsHash,
+        formData.wallet,
+        formData.balance
       );
 
       await tx.wait();

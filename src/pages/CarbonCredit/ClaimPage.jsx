@@ -1,10 +1,13 @@
 import { useState, useContext } from 'react';
 import { ethers } from 'ethers';
-import uploadToIPFS from '../../utils/ifpsUpload';
+import { useIPFS } from '../../context/IpfsContext';
 import { Web3Context } from '../../hooks/Web3hook';
+import { parse } from 'dotenv';
+import axios from 'axios';
 
 const OrganisationClaimPage = () => {
   const { walletAddress, contract, connectWallet, organization, error } = useContext(Web3Context); // Use global Web3 state
+    const { uploadFile, error: ipfsError } = useIPFS(); // Use the IPFS context
 
   const [formData, setFormData] = useState({
     coordinatesX: '',
@@ -13,7 +16,7 @@ const OrganisationClaimPage = () => {
     demandedTokens: '',
     projectDetails: '',
     projectName: '',
-    photos: []
+    photoIpfsHash: null,
   });
   const [localError, setLocalError] = useState('');
 
@@ -24,21 +27,23 @@ const OrganisationClaimPage = () => {
       [e.target.name]: e.target.value
     });
   };
-  // Handle file upload
-  const handleFileUpload = async (e) => {
-    try {
-      const files = Array.from(e.target.files);
-      const cids = await Promise.all(files.map(file => uploadToIPFS(file)));
-      setFormData({ ...formData, photos: cids });
-    } catch (error) {
-      setLocalError('Error uploading files to IPFS');
-    }
-  };
-
-  // Submit claim
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError('');
+    let photoIpfsHash = "";
+      if (formData.photoIpfsHash) {
+        try {
+          photoIpfsHash = await uploadFile(formData.photoIpfsHash);
+          if (!photoIpfsHash) {
+            throw new Error("Failed to upload photo to IPFS");
+          }
+        } catch (ipfsError) {
+          throw new Error(`IPFS Upload Error: ${ipfsError.message}`);
+        }
+      }
+      
+      alert("ipfsHash: " + photoIpfsHash);
+      const photos = photoIpfsHash
 
     try {
       if (!contract) throw new Error("Contract not initialized. Try reconnecting the wallet.");
@@ -47,27 +52,61 @@ const OrganisationClaimPage = () => {
       const tx = await contract.submitClaim(
         parseInt(formData.coordinatesX),
         parseInt(formData.coordinatesY),
-        formData.acres,
+        parseInt(formData.acres),
         ethers.parseUnits(String(formData.demandedTokens), 18), // Ensure it's a string
         formData.projectDetails,
         formData.projectName,
-        formData.photos
+        [photoIpfsHash],
+        2023
       );
 
       const receipt = await tx.wait(); // Wait for transaction confirmation
 
       // 🔹 Extract the claim ID from the event
       const event = receipt.logs.find(log => log.fragment.name === "ClaimSubmitted");
-      if (event) {
-        const claimId = event.args.claimId.toString();
-        console.log("Claim submitted with ID:", claimId);
-        alert(`Claim submitted successfully! Claim ID: ${claimId}`);
-      } else {
-        console.warn("ClaimSubmitted event not found!");
+      let expectedTokens = 0;
+      const claimId = event.args.claimId.toString();
+      try{
+        const response = await axios.post('http://127.0.0.1:5000/predict',{
+          "latitude": formData.coordinatesX,
+          "longitude": formData.coordinatesY,
+          "area": formData.acres,
+          "year": 2020
+        })
+        expectedTokens = Math.floor(parseFloat(response.data['prediction'])); // ✅ Converts float to int
+        alert(expectedTokens);
       }
+      catch(error){ 
+        alert("Internal Sever error! Try again later");
+        console.log(error)
+      }
+   
+      if(expectedTokens > formData.demandedTokens) expectedTokens = formData.demandedTokens;
+      const expectedTokensWei = ethers.parseUnits(String(expectedTokens), 18);
+      const tx2 = await contract.approveClaim(claimId,expectedTokensWei);
+      const receipt2 = await tx2.wait(); 
+      alert("Claim approved !!, coins granted: " + expectedTokens);
+      console.error('Claim submission error:', error);
+      setLocalError(error.reason || error.message);
     } catch (error) {
       console.error('Claim submission error:', error);
       setLocalError(error.reason || error.message);
+    }
+  };
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Basic file validation
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        setLocalError("File size too large. Maximum size is 10MB.");
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setLocalError("Only image files are allowed.");
+        return;
+      }
+      setLocalError("");
+      setFormData({ ...formData, photoIpfsHash: file });
     }
   };
 
@@ -161,24 +200,15 @@ const OrganisationClaimPage = () => {
         </div>
 
         <div className="form-group mb-4">
-          <label className="block text-lg mb-2">Project Photos:</label>
+          <label className="block text-lg mb-2">Project Photo:</label>
           <input
             type="file"
             multiple
-            onChange={handleFileUpload}
+            onChange={handleFileChange}
             accept="image/*"
             className="w-full text-white bg-gray-700 p-2 rounded-md file:mr-2 file:px-4 file:py-2 file:bg-blue-600 file:text-white file:rounded-md hover:file:bg-blue-700"
           />
-          <div className="preview mt-4">
-            {formData.photos.map((cid, index) => (
-              <img
-                key={index}
-                src={`https://ipfs.io/ipfs/${cid}`}
-                alt={`Project preview ${index}`}
-                className="w-32 h-32 object-cover rounded-md shadow-md mt-2"
-              />
-            ))}
-          </div>
+        
         </div>
 
         {localError && <div className="error text-red-500 text-center mb-4">{localError}</div>}
